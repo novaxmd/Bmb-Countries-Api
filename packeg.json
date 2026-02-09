@@ -1,11 +1,14 @@
 {
-  "name": "countries-project",
+  "name": "countries-api-website",
   "version": "1.0.0",
-  "description": "Country Finder with API",
+  "description": "Country Finder Website with API",
+  "main": "index.js",
   "scripts": {
-    "start": "node api/index.js"
+    "start": "node index.js",
+    "dev": "node index.js"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5"
   },
   "engines": {
