@@ -515,7 +515,7 @@
                 <span>Quick examples:</span>
                 <button class="example-btn" data-example="254">254 (Kenya)</button>
                 <button class="example-btn" data-example="TZ">TZ (Tanzania)</button>
-                <button class="example-btn" data-example="1">1 (USA)</button>
+                <button class="example-btn" data-example="1">1 (USA/Canada)</button>
                 <button class="example-btn" data-example="44">44 (UK)</button>
                 <button class="example-btn" data-example="255">255 (Tanzania)</button>
             </div>
@@ -549,8 +549,8 @@
     </div>
 
     <script>
-        // API Configuration - Uses relative path
-        const API_URL = '/api';
+        // API Configuration - FIXED: Use absolute URL
+        const API_URL = 'https://bmb-countries-api.vercel.app/api';
         
         // DOM Elements
         const searchInput = document.getElementById('searchInput');
@@ -607,7 +607,7 @@
             });
         }
 
-        // Perform search
+        // Perform search - FIXED VERSION
         async function performSearch() {
             const query = searchInput.value.trim();
             
@@ -619,8 +619,22 @@
             showLoading();
 
             try {
-                // Smart search - try all methods
-                const results = await smartSearch(query);
+                let results = [];
+                
+                // Detect search type
+                const searchType = detectSearchType(query);
+                
+                if (searchType === 'phone_code') {
+                    // Search by phone code
+                    results = await searchByPhoneCode(query);
+                } else if (searchType === 'country_code') {
+                    // Search by country code
+                    results = await searchByCountryCode(query);
+                } else {
+                    // Search by name
+                    results = await searchByName(query);
+                }
+
                 hideLoading();
                 displayResults(results);
                 
@@ -631,67 +645,75 @@
             }
         }
 
-        // Smart search algorithm
-        async function smartSearch(query) {
-            const cleanedQuery = query.trim();
-            const upperQuery = cleanedQuery.toUpperCase();
+        // Detect search type
+        function detectSearchType(query) {
+            // Check if it's a phone code (all digits)
+            if (/^\d+$/.test(query)) {
+                return 'phone_code';
+            }
             
-            let allResults = [];
-            let seenIds = new Set();
-
-            // Try exact country code (2 letters)
-            if (/^[A-Z]{2}$/.test(upperQuery)) {
-                const codeResults = await searchAPI(`code=${upperQuery}`);
-                codeResults.forEach(country => {
-                    if (!seenIds.has(country.code)) {
-                        seenIds.add(country.code);
-                        allResults.push(country);
-                    }
-                });
+            // Check if it's a country code (2 letters)
+            if (/^[A-Za-z]{2}$/.test(query)) {
+                return 'country_code';
             }
-
-            // Try exact country name
-            const nameResults = await searchAPI(`name=${encodeURIComponent(cleanedQuery)}`);
-            nameResults.forEach(country => {
-                if (!seenIds.has(country.code)) {
-                    seenIds.add(country.code);
-                    allResults.push(country);
-                }
-            });
-
-            // Try phone code search (if it's a number)
-            if (/^\d+$/.test(cleanedQuery)) {
-                const allCountries = await searchAPI('');
-                const phoneResults = allCountries.filter(country => 
-                    country.calling_code && country.calling_code.includes(cleanedQuery)
-                );
-                phoneResults.forEach(country => {
-                    if (!seenIds.has(country.code)) {
-                        seenIds.add(country.code);
-                        allResults.push(country);
-                    }
-                });
-            }
-
-            // If still no results, try partial search
-            if (allResults.length === 0) {
-                const partialResults = await searchAPI(`search=${encodeURIComponent(cleanedQuery)}`);
-                partialResults.forEach(country => {
-                    if (!seenIds.has(country.code)) {
-                        seenIds.add(country.code);
-                        allResults.push(country);
-                    }
-                });
-            }
-
-            return allResults;
+            
+            // Otherwise it's a name search
+            return 'name';
         }
 
-        // Generic API search function
-        async function searchAPI(queryParams = '') {
+        // Search by phone code - FIXED FUNCTION
+        async function searchByPhoneCode(phoneCode) {
             try {
-                const url = queryParams ? `${API_URL}?${queryParams}` : API_URL;
-                const response = await fetch(url);
+                // First get ALL countries
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.data) {
+                    return [];
+                }
+                
+                // Filter countries by phone code
+                return data.data.filter(country => {
+                    if (!country.calling_code || country.calling_code === '') {
+                        return false;
+                    }
+                    
+                    // Handle different calling_code formats
+                    const callingCode = country.calling_code.toString();
+                    
+                    // Check for exact match
+                    if (callingCode === phoneCode) {
+                        return true;
+                    }
+                    
+                    // Check if phone code is part of the calling code
+                    // Example: "1" matches "1-242", "1-246", etc.
+                    if (callingCode.includes(phoneCode)) {
+                        // Special handling for "1" to avoid false positives
+                        if (phoneCode === '1') {
+                            return callingCode.startsWith('1');
+                        }
+                        return true;
+                    }
+                    
+                    return false;
+                });
+                
+            } catch (error) {
+                console.error('Phone code search error:', error);
+                return [];
+            }
+        }
+
+        // Search by country code
+        async function searchByCountryCode(code) {
+            try {
+                const response = await fetch(`${API_URL}?code=${code.toUpperCase()}`);
                 
                 if (!response.ok) {
                     throw new Error(`API error: ${response.status}`);
@@ -701,7 +723,29 @@
                 return data.data || [];
                 
             } catch (error) {
-                console.error('API search error:', error);
+                console.error('Country code search error:', error);
+                return [];
+            }
+        }
+
+        // Search by name
+        async function searchByName(name) {
+            try {
+                // First try exact name match
+                const exactResponse = await fetch(`${API_URL}?name=${encodeURIComponent(name)}`);
+                const exactData = await exactResponse.json();
+                
+                if (exactData.data && exactData.data.length > 0) {
+                    return exactData.data;
+                }
+                
+                // If no exact match, try partial search
+                const partialResponse = await fetch(`${API_URL}?search=${encodeURIComponent(name)}`);
+                const partialData = await partialResponse.json();
+                return partialData.data || [];
+                
+            } catch (error) {
+                console.error('Name search error:', error);
                 return [];
             }
         }
