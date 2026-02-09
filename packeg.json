@@ -1,0 +1,16 @@
+{
+  "name": "countries-api",
+  "version": "1.0.0",
+  "description": "World Countries API",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
