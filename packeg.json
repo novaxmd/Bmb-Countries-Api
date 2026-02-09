@@ -1,11 +1,9 @@
 {
-  "name": "countries-api",
+  "name": "countries-project",
   "version": "1.0.0",
-  "description": "World Countries API",
-  "main": "api/index.js",
+  "description": "Country Finder with API",
   "scripts": {
-    "start": "node api/index.js",
-    "dev": "node api/index.js"
+    "start": "node api/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5"
