@@ -1,7 +1,7 @@
 {
   "name": "countries-api",
   "version": "1.0.0",
-  "description": "World Countries API",
+  "description": "Bmb Tech World Countries API",
   "main": "api/index.js",
   "scripts": {
     "start": "node api/index.js",
